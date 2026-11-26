@@ -7,10 +7,40 @@
 <!--    <query id="1">                                                              -->
 <!--        <name>example query</name>                                              -->
 <!--        <description>this query statement is a query statement</description>    -->
+<!--        <parameters>                                                            -->
+<!--            <parameter name="name" type="STRING" "prompt"="Enter the name:">    -->
+<!--            <parameter name="age" type="INTEGER" "prompt"="Enter the age:">     -->
+<!--        </parameters>                                                           -->
 <!--        <sql>                                                                   -->
 <!--            SELECT                                                              -->
 <!--                67                                                              -->
 <!--            FROM table                                                          -->
 <!--        </sql>                                                                  -->
 <!--    </query>                                                                    -->
+    <query id="1">
+        <name>Highest-Rated Movies by Budget</name>
+        <description>Identify movies that achieved the highest average rating relative to their budgets to determine which movies received high ratings having relatively small budgets.</description>
+        <parameters>
+            <parameter name="fake parameter" type="STRING" prompt="Please enter the fake parameter 1:"/>
+            <parameter name="fake parameter2" type="INTEGER" prompt="Please enter the fake parameter 2:"/>
+        </parameters>
+        <sql>
+            SELECT
+                m.movie_id,
+                m.title,
+                m.budget,
+                mr.avg_rating,
+                (mr.avg_rating / m.budget) AS rating_budget_ration
+            FROM movie m
+            JOIN (
+                SELECT
+                movie_id,
+                AVG(rating) AS avg_rating
+                FROM ratings
+                GROUP BY movie_id
+            ) mr -- movie_rating
+                ON mr.movie_id = m.movie_id
+            ;
+        </sql>
+    </query>
 </queries>

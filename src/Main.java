@@ -7,9 +7,11 @@ public class Main{
     public static void main(String[] args){
 
         QueryLoader queryLoader = new QueryLoader();
-        List<QueryDefinition> definitions = queryLoader.loadQueries("resources/queries.xml");
+        List<QueryDefinition> queries = queryLoader.loadQueries("resources/queries.xml");
 
-        QueryUI queryUI = new QueryUI();
+        QueryRepository repository = new QueryRepository();
+
+        QueryUI queryUI = new QueryUI(queries, repository);
         queryUI.runConsole();
 
     }

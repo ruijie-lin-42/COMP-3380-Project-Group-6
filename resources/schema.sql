@@ -1,0 +1,1 @@
+-- Data Definition Language (DDL) for our tables

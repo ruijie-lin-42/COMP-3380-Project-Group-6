@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- using xml since I want to separate the responsibilities so that the code have better structures        -->
+<!-- I think it's easier to parse the .xml files then .sql files, so I used .xml                            -->
+<!-- Other sql statements I don't need to execute them, so they'll be stored in .sql files for reference    -->
+<queries>
+<!--  insert query statements here using the following structure                    -->
+<!--    <query id="1">                                                              -->
+<!--        <name>example query</name>                                              -->
+<!--        <description>this query statement is a query statement</description>    -->
+<!--        <sql>                                                                   -->
+<!--            SELECT                                                              -->
+<!--                67                                                              -->
+<!--            FROM table                                                          -->
+<!--        </sql>                                                                  -->
+<!--    </query>                                                                    -->
+</queries>

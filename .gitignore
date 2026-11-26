@@ -1,0 +1,10 @@
+# IDE files
+.vscode
+.idea
+.iml
+
+# Credentials
+config/auth.cfg
+
+# Compiled files
+bin/

@@ -35,6 +35,7 @@ public class QueryUI {
     private static final String INFO_INPUT = "i";
     private static final String HIDE_INSTRUCTION_INPUT = "h";
     private static final String NULL_TEXT = "NULL";
+    private static final int SCREEN_WIDTH = 100;
 
     // dependency
     private final QueryRepository repository;
@@ -311,11 +312,12 @@ public class QueryUI {
 
     /// Prints the title of the application, available queries (with short names described), and instructions.
     private void printInfo(){
-        // 55 characters wide
+        String title = "MOVIE ANALYTICS";
+        int spaceLength = (SCREEN_WIDTH - title.length()) / 2;
         System.out.println();
-        System.out.println("=======================================================");
-        System.out.println("                    MOVIE ANALYTICS                    ");
-        System.out.println("=======================================================");
+        System.out.println("=".repeat(SCREEN_WIDTH));
+        System.out.println(" ".repeat(spaceLength) + title + " ".repeat(spaceLength));
+        System.out.println("=".repeat(SCREEN_WIDTH));
         System.out.println();
         System.out.println("Available Queries:");
         System.out.println();
@@ -324,7 +326,7 @@ public class QueryUI {
         }
         System.out.println();
         if(instructionsVisible){
-            System.out.println("-------------------------------------------------------");
+            System.out.println("-".repeat(SCREEN_WIDTH));
             System.out.println("Enter any query number to view details.");
             System.out.println("Enter " + INFO_INPUT + " to view queries' info again.");
             System.out.println("Enter " + HIDE_INSTRUCTION_INPUT + " to hide the instructions, entering it again will enable the display.");
@@ -337,17 +339,23 @@ public class QueryUI {
      * @param query the query to be printed
      */
     private void printQueryDetails(QueryDefinition query){
-        // 55 characters wide
+        List<String> descriptionLines = wrapText(query.description(), SCREEN_WIDTH);
+        String title = "QUERY DETAILS";
+        int spaceLength = (SCREEN_WIDTH - title.length()) / 2;
         System.out.println();
-        System.out.println("=======================================================");
-        System.out.println("                     QUERY DETAILS                     ");
-        System.out.println("=======================================================");
+        System.out.println("=".repeat(SCREEN_WIDTH));
+        System.out.println(" ".repeat(spaceLength) + title + " ".repeat(spaceLength ));
+        System.out.println("=".repeat(SCREEN_WIDTH));
         System.out.println();
         System.out.println("Query: " + query.name());
         System.out.println();
-        System.out.println("Description:\n" + query.description());
+        System.out.println("Description:");
+        for (String line : descriptionLines){
+            System.out.println(line);
+        }
         System.out.println();
-        System.out.println("-------------------------------------------------------");
+        System.out.println();
+        System.out.println("-".repeat(100));
         System.out.println("Options:");
         System.out.println("[1] Execute Query");
         System.out.println("[2] View SQL");
@@ -464,8 +472,7 @@ public class QueryUI {
         List<List<Object>> rows = result.rows();
         int numColumns = columns.size();
         int[] widths = new int[numColumns];
-        final int TOTAL_WIDTH = 100;
-        final int MAX_WIDTH = TOTAL_WIDTH / numColumns;
+        final int MAX_WIDTH = SCREEN_WIDTH / numColumns;
 
         // initialize the widths using the width of column names
         for (int i = 0; i < numColumns; i++) {
@@ -489,12 +496,12 @@ public class QueryUI {
     }
 
     /**
-     * Wraps the specified text so that it fits the width of the column given.<br/>
+     * Wraps the specified text so that it fits the width given.<br/>
      * For the specified text and given width, the method separates the text into multiple lines if the text is longer than
      *      the width. The method will cut the lines at the spaces as close to the possible end as possible to avoid
      *      situations where the newline cuts between words. However, if there's just no spaces and the text is too long,
      *      the method would just cut at the maximum width.
-     * @param text the specified text, or content in the cell
+     * @param text the specified text
      * @param width the width of the column
      * @return a list of strings that each line should display
      */

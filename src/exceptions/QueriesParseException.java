@@ -6,6 +6,11 @@ public class QueriesParseException extends RuntimeException {
 
     private final Field field;
 
+    public QueriesParseException(String message, Field field) {
+        super(message);
+        this.field = field;
+    }
+
     public QueriesParseException(Throwable cause, Field field) {
         super(cause);
         this.field = field;

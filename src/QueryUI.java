@@ -137,18 +137,23 @@ public class QueryUI {
                             while(!parameterValid){
                                 System.out.print("> ");
                                 input = scanner.nextLine().trim();
-                                if(parameter.type() == ParameterType.INTEGER){
-                                    try{
-                                        parameters.addLast(Integer.parseInt(input));
-                                        parameterValid = true;
-                                    }catch(NumberFormatException e){
-                                        System.out.println("The number you entered must be an integer");
-                                    }
-                                }else if(parameter.type() == ParameterType.STRING){
-                                    // TODO: 可能会有允许空的参数？比如说根据某个条件查询的时候不输入就相当于是全量查询，算了先这么写吧
-                                    parameterValid = !input.isBlank();
-                                    if(parameterValid){
-                                        parameters.addLast(input);
+                                if(parameter.optional() && input.isBlank()){
+                                    parameters.addLast(null);
+                                    parameterValid = true;
+                                    System.out.println("No parameters provided; defaulting to null");
+                                }else{
+                                    if (!input.isBlank()) {
+                                        if(parameter.type() == ParameterType.INTEGER){
+                                            try{
+                                                parameters.addLast(Integer.parseInt(input));
+                                                parameterValid = true;
+                                            }catch(NumberFormatException e){
+                                                System.out.println("The number you entered must be an integer");
+                                            }
+                                        }else if(parameter.type() == ParameterType.STRING){
+                                            parameters.addLast(input);
+                                            parameterValid = true;
+                                        }
                                     }
                                 }
                             }
@@ -156,7 +161,8 @@ public class QueryUI {
 
                         // execute the query
                         System.out.println("Executing query...");
-//                        QueryResult result = repository.executeQuery(query, parameters);
+                        // repository isn't built, use a fake result for testing purposes
+                        // QueryResult result = repository.executeQuery(query, parameters);
                         QueryResult result = new QueryResult(
                                 List.of("a long long long long long long long long long long long long  column name", "b longlonglonglong longlonglonglonglonglonglong long  column name", "c long long long long long long long long long long long long  column name"),
                                 List.of(
@@ -252,7 +258,9 @@ public class QueryUI {
         }
         instruction += " for the " + parameter.name();
         System.out.println();
+        System.out.print(parameter.optional() ? "OPTIONAL: " : "REQUIRED: ");
         System.out.print(instruction);
+        System.out.println();
     }
 
     /**

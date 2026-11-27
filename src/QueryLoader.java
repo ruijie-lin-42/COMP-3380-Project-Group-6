@@ -62,9 +62,15 @@ public class QueryLoader{
                     // parse the current parameter's information
                     String parameterName = parameter.getAttribute("name");
                     ParameterType parameterType = ParameterType.valueOf(parameter.getAttribute("type"));
-                    String prompt = parameter.getAttribute("prompt");
+                    String optionalStr = parameter.getAttribute("optional");
+                    boolean optional = false;
+                    if("true".equals(optionalStr)){
+                        optional = true;
+                    }else if(!"false".equals(optionalStr)){
+                        throw new QueriesParseException("Unexpected value for optional, expected either true or false, but is " + optionalStr, QueriesParseException.Field.PARSE);
+                    }
 
-                    parametersList.addLast(new QueryParameter(parameterName, parameterType, prompt));
+                    parametersList.addLast(new QueryParameter(parameterName, parameterType, optional));
                 }
 
                 // add to result list

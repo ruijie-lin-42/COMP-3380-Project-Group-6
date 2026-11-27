@@ -21,8 +21,8 @@
         <name>Highest-Rated Movies by Budget</name>
         <description>Identify movies that achieved the highest average rating relative to their budgets to determine which movies received high ratings having relatively small budgets.</description>
         <parameters>
-            <parameter name="fake parameter" type="STRING" prompt="Please enter the fake parameter 1:"/>
-            <parameter name="fake parameter2" type="INTEGER" prompt="Please enter the fake parameter 2:"/>
+            <parameter name="fake optional parameter 1" type="STRING" optional="true"/>
+            <parameter name="fake required parameter2" type="INTEGER" optional="false"/>
         </parameters>
         <sql>
             SELECT

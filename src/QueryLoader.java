@@ -23,6 +23,13 @@ import java.util.List;
  */
 public class QueryLoader{
 
+    /**
+     * Loads all queries specified in the target file
+     * @param filePath the path of the specified file that contains all the queries
+     * @return a list of QueryDefinitions that contains all the information needed to execute the query
+     * @throws QueriesNotFoundException when specified file containing all queries is not found
+     * @throws QueriesParseException when failed to parse any of the queries
+     */
     public List<QueryDefinition> loadQueries(String filePath){
         List<QueryDefinition> result = new ArrayList<>();
         try{
@@ -84,6 +91,12 @@ public class QueryLoader{
         return result;
     }
 
+    /**
+     * Retrieves the text content of a child tag of the parent tag in a xml file
+     * @param parent the parent tag
+     * @param childTagName the name of the child tag
+     * @return the child tag's text content
+     */
     private static String getChildText(Element parent, String childTagName){
         NodeList children = parent.getElementsByTagName(childTagName);
         return children.getLength() > 0 ? children.item(0).getTextContent() : null;

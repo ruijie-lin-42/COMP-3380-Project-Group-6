@@ -50,7 +50,9 @@ COMP-3380-Project-Group-6/
 │   ├── queries.xml  
 │   ├── schema.sql  
 │   ├── insert_data.sql  
-│   └── dataset/  
+│   └── dataset/ 
+│
+├── dataCleaning/
 │  
 ├── libs/  
 │   ├── mssql-jdbc-11.2.0.jre11.jar  
@@ -73,6 +75,7 @@ COMP-3380-Project-Group-6/
 ## Project Structure Description
 - `src/` contains all the java files.
 - `resources/` contains all the sql statements and the dataset. I structured the files this way since I want to separate the responsibilities so that the code have better structures and is easier to understand.
+- `dataCleaning` contains all the code we used to clean the data.
 - `libs/` contains the dependencies, for now just the jdbc driver for sql server
   - I think we use mssql-jdbc-11.2.0.jre18.jar since our java version is 25, we'll see if we need the other one, if not then delete it should be fine
 - `config/` contains all the configurations, for now just username and password for database connection

@@ -1,6 +1,6 @@
 import dto.DatabaseConfig;
 import dto.QueryDefinition;
-import exceptions.InvalidCredentialException;
+import exceptions.main.InvalidCredentialException;
 
 import java.io.FileInputStream;
 import java.io.IOException;

@@ -1,4 +1,4 @@
-package exceptions;
+package exceptions.repository;
 
 public class IncorrectParameterTypeException extends RuntimeException {
     public IncorrectParameterTypeException(String message) {

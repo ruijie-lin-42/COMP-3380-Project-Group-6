@@ -1,4 +1,4 @@
-package exceptions;
+package exceptions.loader;
 
 public class QueriesParseException extends RuntimeException {
 

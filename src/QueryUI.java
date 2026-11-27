@@ -2,189 +2,314 @@ import dto.ParameterType;
 import dto.QueryDefinition;
 import dto.QueryParameter;
 import dto.QueryResult;
-import exceptions.InvalidInputException;
+import exceptions.ui.InvalidInputException;
 
 import java.util.*;
 import java.util.function.Predicate;
 
 public class QueryUI {
 
+    // the states for current screen showing
+    private enum STATES{
+        /// contains the list of queries the user can choose from and some other operations
+        MAIN_MENU,
+
+        /// contains the detailed information of a query and operations available
+        QUERY_DETAILS,
+
+        /// asks the user to input the parameters required
+        PARAMETER_INPUT,
+
+        /// executes the query selected
+        EXECUTE_QUERY,
+
+        /// contains the result of the query
+        RESULT_DISPLAY,
+
+        /// quit the application
+        QUIT
+    }
+
+    // constants
     private static final String QUIT_INPUT = "q";
     private static final String INFO_INPUT = "i";
     private static final String HIDE_INSTRUCTION_INPUT = "h";
-    private static final int QUERY_NUM_LOWER_BOUND = 1;
     private static final String NULL_TEXT = "NULL";
 
-    private final List<QueryDefinition> queries;
+    // dependency
     private final QueryRepository repository;
-    private boolean instructionsVisible;
 
+    // application state
+    private STATES currentState;
+    private boolean instructionsVisible;
+    private final List<QueryDefinition> queries;
+
+    // context
+    private QueryDefinition selectedQuery;
+    private List<Object> parametersPassed;
+    private QueryResult queryResult;
+
+    /**
+     * Constructs the QueryUI instance.
+     * @param queries all queries available, configure from an external file
+     * @param repository the repository instance used for executing queries
+     */
     public QueryUI(List<QueryDefinition> queries, QueryRepository repository){
         this.queries = queries;
         this.repository = repository;
         this.instructionsVisible = true;
+        this.currentState = STATES.MAIN_MENU;
+        this.clearContext(); // context should be cleared on initialization
     }
 
-    /**
-     * Runs the console UI.<br/>
-     * The console UI basically have four main pages: main menu, query details, query execution, and result display:<br/>
-     * <b>Main Menu</b>: contains the list of queries the user can choose from and some other operations.<br/>
-     * <b>Query Details</b>: contains the detailed information of a query and operations available.<br/>
-     * <b>Query Execution</b>: asks the user to input the parameters required.<br/>
-     * <b>Result Display</b>: contains the result of the query.
-     */
-    // TODO: 感觉可以把各个界面分开写在不同的方法中
-    // TODO: 感觉可以把解析整数的逻辑抽象出来
+    /// Runs the console UI using the simple state machine.
     public void runConsole(){
         Scanner scanner = new Scanner(System.in);
-        boolean quit = false;
-        String input;
 
         // print title & queries & instructions
         printInfo();
 
-        while(!quit){
+        // run the state machine
+        while(currentState != STATES.QUIT){
+            switch(currentState){
+                case MAIN_MENU -> showMainMenu(scanner);
+                case QUERY_DETAILS -> showQueryDetails(scanner);
+                case PARAMETER_INPUT -> showParameterInput(scanner);
+                case EXECUTE_QUERY -> showExecuteQuery();
+                case RESULT_DISPLAY -> showResultDisplay();
+            }
+        }
+    }
+
+    // ==================================================== SCREENS ====================================================
+
+    /**
+     * Shows the screen for main menu, which prints information and instructions needed and asks user to input what to do.
+     * @param scanner scanner to receive user input from console
+     */
+    private void showMainMenu(Scanner scanner){
+        String input;
+
+        // every time we come back to the main menu, the context should be cleared
+        clearContext();
+
+        while(currentState == STATES.MAIN_MENU){
             // obtain input
             System.out.print("> ");
             input = scanner.nextLine().trim();
 
             // if print the query lists again
-            if(INFO_INPUT.equals(input)){
+            if(INFO_INPUT.equalsIgnoreCase(input)){
                 printInfo();
             }
             // if the user wants to make instructions invisible
-            else if(HIDE_INSTRUCTION_INPUT.equals(input)){
-                this.instructionsVisible = !this.instructionsVisible;
+            else if(HIDE_INSTRUCTION_INPUT.equalsIgnoreCase(input)){
+                instructionsVisible = !instructionsVisible;
             }
             // if the user wants to quit
-            else if(QUIT_INPUT.equals(input)){
-                quit = true;
+            else if(QUIT_INPUT.equalsIgnoreCase(input)){
+                currentState = STATES.QUIT;
             }
-            // empty input
-            else if(input.isBlank()){
-                // if the input is empty then we don't want to print a bunch of error messages or instructions on what to do
-                continue;
-            }
-            else{
-
-                // =================== MAIN MENU ===================
-
-                // parse the input and validate it
-                int queryNum = QUERY_NUM_LOWER_BOUND - 1;
+            // the remaining possibilities are inputting queryId or input invalid
+            else if(!input.isBlank()){
+                // check if the input is a queryId
                 try{
-                    queryNum = parseInputToInt(input, (queryId) -> {
+                    // parse the input to integer
+                    int selectedQueryId = parseInputToInt(input, (queryId) -> {
                         // make sure the parsed query id is a positive number
                         if(queryId <= 0)
                             return false;
 
                         // make sure the parsed query id is an option
                         boolean valid = false;
-                        for (QueryDefinition query : queries){
-                            if (query.id() == queryId) {
+                        for (int i = 0; i < queries.size() && !valid; i++) {
+                            QueryDefinition current = queries.get(i);
+                            if (current.id() == queryId) {
                                 valid = true;
-                                break;
                             }
                         }
                         return valid;
                     }, "input must be a valid query number");
-                }catch (InvalidInputException e){
+
+                    // get the query definition based on the query id selected
+                    for (int i = 0; i < queries.size() && selectedQuery == null; i++) {
+                        if(queries.get(i).id() == selectedQueryId){
+                            selectedQuery = queries.get(i);
+                        }
+                    }
+
+                    // if we can't find the corresponding query based on the selected query id
+                    if(selectedQuery == null){
+                        System.out.println("Oops! Something went wrong and we can't find the query based on the query number selected :(");
+                    }
+                    // if we can find the corresponding query, redirect to query details page
+                    else{
+                        currentState = STATES.QUERY_DETAILS;
+                    }
+                }
+                // if anything is not correct, then it's an invalid input
+                catch (InvalidInputException e){
                     System.out.println(e.getMessage());
                 }
+            }
+            // if user input is blank, then don't do anything
+        }
+    }
 
-                // if the parsed query number lower than the lower bound, then we must encounter some issue when validating it
-                // so if that happens, will skip these steps
-                // in another word, if the code here executes, then the query number inputted must be a valid option
-                if(queryNum >= QUERY_NUM_LOWER_BOUND){
+    /**
+     * Shows the screen for query details, which prints the details of the query and asks user to input what to do.
+     * @param scanner scanner to receive user input from console
+     */
+    private void showQueryDetails(Scanner scanner){
+        String input;
 
-                    // =================== QUERY DETAILS PAGE ===================
+        // make sure that the selected query is not null
+        if(selectedQuery == null){
+            currentState = STATES.MAIN_MENU;
+            System.out.println("No query is selected before execution while there should be.");
+            printRedirectToMain();
+            return; // just return here, I don't want to add an extra level of indentation to the remaining code
+        }
 
-                    // get the query definition
-                    QueryDefinition query = null;
-                    for (int i = 0; i < queries.size() && query == null; i++) {
-                        if(queries.get(i).id() == queryNum){
-                            query = queries.get(i);
-                        }
-                    }
+        // print the query's detail information & instructions
+        printQueryDetails(selectedQuery);
 
-                    // print the query's detail information & instructions
-                    // here's a warning of query could be null, however we checked that the queryNum must corresponds to a valid query
-                    // so unless we want to change our code, I think we're fine
-                    printQueryDetails(query);
+        int operation = 0;
+        boolean valid = false;
+        while(!valid){
+            System.out.print("> ");
+            input = scanner.nextLine().trim();
 
-                    input = scanner.nextLine().trim();
+            // parse the operation chosen
+            // has coupling with the printQueryDetails function since we want to limit input based on what is printed
+            // 1 = execute query, 2 = print sql, 3 = back to main menu
+            try{
+                operation = parseInputToInt(input, (choice) -> (choice == 1 || choice == 2 || choice == 3), "");
+                valid = true;
+            }catch(InvalidInputException e){
+                System.out.println("Invalid input. Please choose a valid operation number.");
+            }
+        }
 
-                    // parse the operation chosen
-                    // has coupling with the printQueryDetails function since we want to limit input based on what is printed (for now, can only be either 1 or 2)
-                    // this isn't software engineering course, good enough for now
-                    int operation = 0;
-                    try{
-                        operation = parseInputToInt(input, (operationNum) -> (operationNum == 1 || operationNum == 2), "");
-                    }catch(InvalidInputException e){
-                        System.out.println("You have been redirected to the main menu. To print the main menu again, enter " + INFO_INPUT + ".");
-                    }
-
-                    // if the operation is neither 1 nor 2, then it's the case where the user wants to go back to the main menu
-                    if(operation == 1){
-
-                        // =================== QUERY EXECUTION PAGE ===================
-
-                        // ask user to enter parameters required
-                        List<Object> parameters = new LinkedList<>();
-
-                        for(QueryParameter parameter : query.parameters()){
-                            printParameter(parameter);
-                            boolean parameterValid = false;
-                            while(!parameterValid){
-                                System.out.print("> ");
-                                input = scanner.nextLine().trim();
-                                if(parameter.optional() && input.isBlank()){
-                                    parameters.addLast(null);
-                                    parameterValid = true;
-                                    System.out.println("No parameters provided; defaulting to null");
-                                }else{
-                                    if (!input.isBlank()) {
-                                        if(parameter.type() == ParameterType.INTEGER){
-                                            try{
-                                                parameters.addLast(Integer.parseInt(input));
-                                                parameterValid = true;
-                                            }catch(NumberFormatException e){
-                                                System.out.println("The number you entered must be an integer");
-                                            }
-                                        }else if(parameter.type() == ParameterType.STRING){
-                                            parameters.addLast(input);
-                                            parameterValid = true;
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
-                        // execute the query
-                        System.out.println("Executing query...");
-                        // repository isn't built, use a fake result for testing purposes
-                        // QueryResult result = repository.executeQuery(query, parameters);
-                        QueryResult result = new QueryResult(
-                                List.of("a long long long long long long long long long long long long  column name", "b longlonglonglong longlonglonglonglonglonglong long  column name", "c long long long long long long long long long long long long  column name"),
-                                List.of(
-                                        List.of("1", 2, "3"),
-                                        List.of("4", 5, "6")));
-
-                        printResult(result);
-
-                    }else if(operation == 2){
-                        // print sql
-                        printSQL(query);
-                    }
-
-                }
-
+        // jump to different pages based on the operations selected
+        switch(operation){
+            // execute query, so jump to parameter input page
+            case 1 -> currentState = STATES.PARAMETER_INPUT;
+            // print sql, to keep it simple stupid I just print the sql instead of making another screen
+            case 2 -> {
+                currentState = STATES.MAIN_MENU;
+                printSQL(selectedQuery);
+                printRedirectToMain();
+            }
+            case 3 -> {
+                currentState = STATES.MAIN_MENU;
+                printRedirectToMain();
             }
         }
     }
 
     /**
-     * Prints the title of the application, available queries (with short names described), and instructions.
+     * Shows the parameter input screen, which prints the information and instruction needed, and asks user to input the
+     *      parameters required for the query.
+     * @param scanner scanner to receive user input from console
      */
+    private void showParameterInput(Scanner scanner){
+        String input;
+
+        // make sure that the selected query is not null
+        if(selectedQuery == null){
+            currentState = STATES.MAIN_MENU;
+            System.out.println("No query is selected while there should be.");
+            printRedirectToMain();
+            return; // just return here, I don't want to add an extra level of indentation to the remaining code
+        }
+
+        // for each parameter declared for the query, ask the user to enter the parameter
+        for(QueryParameter parameter : selectedQuery.parameters()){
+            // print the parameter's info
+            printParameter(parameter);
+
+            // ask the user to input the current parameter until input valid
+            boolean valid = false;
+            while(!valid){
+                System.out.print("> ");
+                input = scanner.nextLine().trim();
+
+                // if the current parameter is optional and is blank, pass null
+                if(parameter.optional() && input.isBlank()){
+                    parametersPassed.addLast(null);
+                    valid = true;
+                    System.out.println("No parameters provided; defaulting to null.");
+                }else{
+                    // if the input is not blank, then no matter if the current parameter is optional, try to parse and pass it
+                    if (!input.isBlank()) {
+                        if(parameter.type() == ParameterType.INTEGER){
+                            try{
+                                parametersPassed.addLast(Integer.parseInt(input));
+                                valid = true;
+                            }catch(NumberFormatException e){
+                                System.out.println("The number you entered must be an integer.");
+                            }
+                        }else if(parameter.type() == ParameterType.STRING){
+                            parametersPassed.addLast(input);
+                            valid = true;
+                        }
+                    }
+                }
+                // if the current parameter is not optional but is blank, it's an invalid input
+            }
+        }
+
+        currentState = STATES.EXECUTE_QUERY;
+
+    }
+
+    /// Shows the execute query screen, which executes the query and gives the result.
+    private void showExecuteQuery(){
+
+        if(selectedQuery == null){
+            currentState = STATES.MAIN_MENU;
+            System.out.println("No query is selected before execution.");
+            printRedirectToMain();
+        }else if(parametersPassed == null || parametersPassed.size() != selectedQuery.parameters().size()){
+            currentState = STATES.MAIN_MENU;
+            System.out.println("Not all parameters are entered and passed.");
+            printRedirectToMain();
+        }else{
+            System.out.println("Executing query...");
+            // database not built yet, once built will switch to real database
+            // for now just assume it's executed on real database, and have a stub result for testing purposes
+            // queryResult = repository.executeQuery(selectedQuery, parametersPassed);
+            queryResult = new QueryResult(
+                    List.of("a long long long long long long long long long long long long  column name", "b longlonglonglong longlonglonglonglonglonglong long  column name", "c long long long long long long long long long long long long  column name"),
+                    List.of(
+                            List.of("1", 2, "3"),
+                            List.of("4", 5, "6")));
+
+            currentState = STATES.RESULT_DISPLAY;
+        }
+    }
+
+    /// Shows the result display screen, which prints the result of an executed query.
+    private void showResultDisplay(){
+
+        // make sure we have the result
+        if(queryResult == null){
+            currentState = STATES.MAIN_MENU;
+            System.out.println("No query result is generated before printing.");
+            printRedirectToMain();
+        }
+
+        // print the result
+        printResult(queryResult);
+        printRedirectToMain();
+
+        currentState = STATES.MAIN_MENU;
+    }
+
+    // ======================================= PRINTING FOR INFO & INSTRUCTIONS =======================================
+
+    /// Prints the title of the application, available queries (with short names described), and instructions.
     private void printInfo(){
         // 55 characters wide
         System.out.println();
@@ -226,13 +351,11 @@ public class QueryUI {
         System.out.println("Options:");
         System.out.println("[1] Execute Query");
         System.out.println("[2] View SQL");
+        System.out.println("[3] Back to Main Menu");
         if(instructionsVisible){
             System.out.println();
             System.out.println("Enter number of the operation you wish to perform.");
-            System.out.println("Enter any other key(s) to return to the previous screen.");
-            System.out.println("You will be redirected to the main menu after the selected operation is completed.");
         }
-        System.out.print("> "); // there will not be any loops for this page, so print it here
     }
 
     /**
@@ -243,7 +366,6 @@ public class QueryUI {
         System.out.println();
         System.out.println(query.sql());
         System.out.println();
-        System.out.println("You have been redirected to the main menu. To print the main menu again, enter " + INFO_INPUT + ".");
     }
 
     /**
@@ -281,11 +403,10 @@ public class QueryUI {
             printRow(row, widths);
         }
         printLineSeparations(widths);
-        System.out.println();;
-
-        System.out.println("You are redirected to the main menu. To print the main menu again, enter " + INFO_INPUT + ".");
+        System.out.println();
     }
 
+    /// Prints the separation line in the table.
     private void printLineSeparations(int[] widths){
         for (int width : widths) {
             System.out.print("+" + "-".repeat(width + 2));
@@ -293,9 +414,7 @@ public class QueryUI {
         System.out.println("+");
     }
 
-    /**
-     * Prints a single row, limiting the width of each cell.
-     */
+    /// Prints a single row, limiting the width of each cell.
     private void printRow(List<?> row, int[] widths){
         List<List<String>> wrappedValues = new ArrayList<>();
         int maxLines = 1; // count the maximum number of lines needed to be printed in the current row
@@ -327,6 +446,13 @@ public class QueryUI {
 
     }
 
+    /// Prints the message for being redirected to main menu if something went wrong, or we finished the operations.
+    private void printRedirectToMain(){
+        System.out.println("You are redirected to the main menu. To print the main menu again, enter " + INFO_INPUT + ".");
+    }
+
+    // ================================================ HELPER METHODS ================================================
+
     /**
      * Calculates the width each column should be. Assuming each line is maximum 80 characters.
      * @param result the result of the query
@@ -341,10 +467,12 @@ public class QueryUI {
         final int TOTAL_WIDTH = 100;
         final int MAX_WIDTH = TOTAL_WIDTH / numColumns;
 
+        // initialize the widths using the width of column names
         for (int i = 0; i < numColumns; i++) {
             widths[i] = columns.get(i).length();
         }
 
+        // for each row, find the largest width required (lower than the max)
         for (List<Object> row : rows){
             for (int i = 0; i < numColumns; i++) {
                 String value = row.get(i) == null ? NULL_TEXT : row.get(i).toString();
@@ -352,6 +480,7 @@ public class QueryUI {
             }
         }
 
+        // calculate the appropriate for each column
         for (int i = 0; i < numColumns; i++) {
             widths[i] = Math.min(widths[i], MAX_WIDTH);
         }
@@ -430,6 +559,16 @@ public class QueryUI {
         }
 
         return inputInt;
+    }
+
+    /**
+     * Clears the application's context.<br/>
+     * Make sure whenever this is called the old context is not used anymore.
+     */
+    private void clearContext(){
+        this.selectedQuery = null;
+        this.parametersPassed = new LinkedList<>();
+        this.queryResult = null;
     }
 
 }

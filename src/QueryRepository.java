@@ -2,8 +2,8 @@ import dto.DatabaseConfig;
 import dto.QueryDefinition;
 import dto.QueryParameter;
 import dto.QueryResult;
-import exceptions.DataAccessException;
-import exceptions.IncorrectParameterTypeException;
+import exceptions.repository.DataAccessException;
+import exceptions.repository.IncorrectParameterTypeException;
 
 import java.sql.*;
 import java.util.LinkedList;

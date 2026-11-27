@@ -1,10 +1,10 @@
+import dto.ParameterType;
 import dto.QueryDefinition;
 import dto.QueryParameter;
+import dto.QueryResult;
 import exceptions.InvalidInputException;
 
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Scanner;
+import java.util.*;
 import java.util.function.Predicate;
 
 public class QueryUI {
@@ -13,6 +13,7 @@ public class QueryUI {
     private static final String INFO_INPUT = "i";
     private static final String HIDE_INSTRUCTION_INPUT = "h";
     private static final int QUERY_NUM_LOWER_BOUND = 1;
+    private static final String NULL_TEXT = "NULL";
 
     private final List<QueryDefinition> queries;
     private final QueryRepository repository;
@@ -32,6 +33,8 @@ public class QueryUI {
      * <b>Query Execution</b>: asks the user to input the parameters required.<br/>
      * <b>Result Display</b>: contains the result of the query.
      */
+    // TODO: 感觉可以把各个界面分开写在不同的方法中
+    // TODO: 感觉可以把解析整数的逻辑抽象出来
     public void runConsole(){
         Scanner scanner = new Scanner(System.in);
         boolean quit = false;
@@ -104,6 +107,8 @@ public class QueryUI {
                     }
 
                     // print the query's detail information & instructions
+                    // here's a warning of query could be null, however we checked that the queryNum must corresponds to a valid query
+                    // so unless we want to change our code, I think we're fine
                     printQueryDetails(query);
 
                     input = scanner.nextLine().trim();
@@ -124,10 +129,41 @@ public class QueryUI {
                         // =================== QUERY EXECUTION PAGE ===================
 
                         // ask user to enter parameters required
-                        List<QueryParameter> parameters = new LinkedList<>();
+                        List<Object> parameters = new LinkedList<>();
 
-                        // TODO: 让用户输入需要的参数，然后填进列表传给repository
-                        System.out.println("就当执行了吧");
+                        for(QueryParameter parameter : query.parameters()){
+                            printParameter(parameter);
+                            boolean parameterValid = false;
+                            while(!parameterValid){
+                                System.out.print("> ");
+                                input = scanner.nextLine().trim();
+                                if(parameter.type() == ParameterType.INTEGER){
+                                    try{
+                                        parameters.addLast(Integer.parseInt(input));
+                                        parameterValid = true;
+                                    }catch(NumberFormatException e){
+                                        System.out.println("The number you entered must be an integer");
+                                    }
+                                }else if(parameter.type() == ParameterType.STRING){
+                                    // TODO: 可能会有允许空的参数？比如说根据某个条件查询的时候不输入就相当于是全量查询，算了先这么写吧
+                                    parameterValid = !input.isBlank();
+                                    if(parameterValid){
+                                        parameters.addLast(input);
+                                    }
+                                }
+                            }
+                        }
+
+                        // execute the query
+                        System.out.println("Executing query...");
+//                        QueryResult result = repository.executeQuery(query, parameters);
+                        QueryResult result = new QueryResult(
+                                List.of("a long long long long long long long long long long long long  column name", "b longlonglonglong longlonglonglonglonglonglong long  column name", "c long long long long long long long long long long long long  column name"),
+                                List.of(
+                                        List.of("1", 2, "3"),
+                                        List.of("4", 5, "6")));
+
+                        printResult(result);
 
                     }else if(operation == 2){
                         // print sql
@@ -193,11 +229,174 @@ public class QueryUI {
         System.out.print("> "); // there will not be any loops for this page, so print it here
     }
 
+    /**
+     * Prints the sql statement of the specified query.
+     * @param query the specified query, which the user wishes to print the sql
+     */
     private void printSQL(QueryDefinition query){
         System.out.println();
         System.out.println(query.sql());
         System.out.println();
         System.out.println("You have been redirected to the main menu. To print the main menu again, enter " + INFO_INPUT + ".");
+    }
+
+    /**
+     * Prints the instructions for asking the user to enter a required parameter.
+     * @param parameter the required parameter
+     */
+    private void printParameter(QueryParameter parameter){
+        String instruction = "Please enter a";
+        switch(parameter.type()){
+            case INTEGER: instruction += "n integer";break;
+            case STRING: instruction += " string";break;
+        }
+        instruction += " for the " + parameter.name();
+        System.out.println();
+        System.out.print(instruction);
+    }
+
+    /**
+     * Prints the result of a query.
+     * @param result the query's result
+     */
+    private void printResult(QueryResult result){
+        List<String> columns = result.columns();
+        List<List<Object>> rows = result.rows();
+        int[] widths = calculateColumnWidths(result); // the width limit for each column/cell
+
+        System.out.println();
+        printLineSeparations(widths);
+        // print the column names
+        printRow(columns, widths);
+        printLineSeparations(widths);
+        for (List<Object> row : rows){
+            printRow(row, widths);
+        }
+        printLineSeparations(widths);
+        System.out.println();;
+
+        System.out.println("You are redirected to the main menu. To print the main menu again, enter " + INFO_INPUT + ".");
+    }
+
+    private void printLineSeparations(int[] widths){
+        for (int width : widths) {
+            System.out.print("+" + "-".repeat(width + 2));
+        }
+        System.out.println("+");
+    }
+
+    /**
+     * Prints a single row, limiting the width of each cell.
+     */
+    private void printRow(List<?> row, int[] widths){
+        List<List<String>> wrappedValues = new ArrayList<>();
+        int maxLines = 1; // count the maximum number of lines needed to be printed in the current row
+
+        // for each cell (in a row, goes from left most column to right most column), wrap the text
+        // i.e. get the strings needed to be printed when considering printing them in a new line if too long.
+        for (int i = 0; i < row.size(); i++) {
+            // get the raw text, if null then use the text for null
+            String rawText = (row.get(i) == null ? NULL_TEXT : row.get(i).toString());
+            // wrap the raw text
+            List<String> lines = wrapText(rawText, widths[i]);
+            // save the wrapped text
+            wrappedValues.addLast(lines);
+            // update max lines count
+            maxLines = Math.max(maxLines, lines.size());
+        }
+
+        // for each cell, print the content
+        for(int lineIdx = 0; lineIdx < maxLines; lineIdx++){
+            for (int columnIdx = 0; columnIdx < row.size(); columnIdx++){
+                List<String> lines = wrappedValues.get(columnIdx);
+                // print the current line, if there's nothing to print then print nothing
+                String value = lineIdx < lines.size() ? lines.get(lineIdx) : "";
+                // padding to the right to at most width limit
+                System.out.printf("| %-" + widths[columnIdx] + "s ", value);
+            }
+            System.out.println("|");
+        }
+
+    }
+
+    /**
+     * Calculates the width each column should be. Assuming each line is maximum 80 characters.
+     * @param result the result of the query
+     * @return an array of integers representing each column's width
+     */
+    private int[] calculateColumnWidths(QueryResult result){
+
+        List<String> columns = result.columns();
+        List<List<Object>> rows = result.rows();
+        int numColumns = columns.size();
+        int[] widths = new int[numColumns];
+        final int TOTAL_WIDTH = 100;
+        final int MAX_WIDTH = TOTAL_WIDTH / numColumns;
+
+        for (int i = 0; i < numColumns; i++) {
+            widths[i] = columns.get(i).length();
+        }
+
+        for (List<Object> row : rows){
+            for (int i = 0; i < numColumns; i++) {
+                String value = row.get(i) == null ? NULL_TEXT : row.get(i).toString();
+                widths[i] = Math.max(value.length(), widths[i]);
+            }
+        }
+
+        for (int i = 0; i < numColumns; i++) {
+            widths[i] = Math.min(widths[i], MAX_WIDTH);
+        }
+
+        return widths;
+    }
+
+    /**
+     * Wraps the specified text so that it fits the width of the column given.<br/>
+     * For the specified text and given width, the method separates the text into multiple lines if the text is longer than
+     *      the width. The method will cut the lines at the spaces as close to the possible end as possible to avoid
+     *      situations where the newline cuts between words. However, if there's just no spaces and the text is too long,
+     *      the method would just cut at the maximum width.
+     * @param text the specified text, or content in the cell
+     * @param width the width of the column
+     * @return a list of strings that each line should display
+     */
+    private List<String> wrapText(String text, int width){
+
+        List<String> lines = new LinkedList<>();
+        String value = (text == null ? NULL_TEXT : text);
+
+        // I don't think our data would contain newline characters though, but just in case
+        value = value.replace("\n", " ");
+
+        // start and end position of current line, and the index of the last occurrence of the space
+        int start = 0, end, spaceIdx;
+
+        while(start < value.length()){
+            // see if the rest of the text is able to be put into a single cell
+            end = Math.min(start + width, value.length());
+
+            // if not, then cut it into lines
+            if(end < value.length()){
+                // try to find the last occurrence of the space
+                spaceIdx = value.lastIndexOf(' ', end);
+
+                // if we found one, switch lines there
+                // if we didn't find any spaces, then we can only cut at end
+                if(spaceIdx > start){
+                    end = spaceIdx;
+                }
+            }
+
+            // save the line and move to the next line if any
+            lines.addLast(value.substring(start, end).trim());
+            start = end;
+            while(start < value.length() && value.charAt(start) == ' '){
+                start++;
+            }
+        }
+
+        return lines;
     }
 
     /**

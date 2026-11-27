@@ -130,7 +130,7 @@ public class QueryUI {
                             }
                         }
                         return valid;
-                    }, "input must be a valid query number");
+                    });
 
                     // get the query definition based on the query id selected
                     for (int i = 0; i < queries.size() && selectedQuery == null; i++) {
@@ -150,7 +150,7 @@ public class QueryUI {
                 }
                 // if anything is not correct, then it's an invalid input
                 catch (InvalidInputException e){
-                    System.out.println(e.getMessage());
+                    System.out.println("Input invalid, must either be an integer for query number of a character for operation.");
                 }
             }
             // if user input is blank, then don't do anything
@@ -185,7 +185,7 @@ public class QueryUI {
             // has coupling with the printQueryDetails function since we want to limit input based on what is printed
             // 1 = execute query, 2 = print sql, 3 = back to main menu
             try{
-                operation = parseInputToInt(input, (choice) -> (choice == 1 || choice == 2 || choice == 3), "");
+                operation = parseInputToInt(input, (choice) -> (choice == 1 || choice == 2 || choice == 3));
                 valid = true;
             }catch(InvalidInputException e){
                 System.out.println("Invalid input. Please choose a valid operation number.");
@@ -550,7 +550,7 @@ public class QueryUI {
      * @return the input as an integer, if all validations pass
      * @throws InvalidInputException if input invalid, either is not a number or exceeds max value
      */
-    private int parseInputToInt(String input, Predicate<Integer> requires, String message) throws InvalidInputException {
+    private int parseInputToInt(String input, Predicate<Integer> requires) throws InvalidInputException {
         // parse input
         int inputInt;
         try{
@@ -562,7 +562,7 @@ public class QueryUI {
         // make sure the parsed integer satisfies the requirement
         boolean pass = requires.test(inputInt);
         if(!pass){
-            throw new InvalidInputException("Invalid input, " + message + ", but is " + inputInt);
+            throw new InvalidInputException("Invalid input, input not meeting the requirements.");
         }
 
         return inputInt;

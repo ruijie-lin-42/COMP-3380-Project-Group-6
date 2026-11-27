@@ -278,14 +278,7 @@ public class QueryUI {
             printRedirectToMain();
         }else{
             System.out.println("Executing query...");
-            // database not built yet, once built will switch to real database
-            // for now just assume it's executed on real database, and have a stub result for testing purposes
-            // queryResult = repository.executeQuery(selectedQuery, parametersPassed);
-            queryResult = new QueryResult(
-                    List.of("a long long long long long long long long long long long long  column name", "b longlonglonglong longlonglonglonglonglonglong long  column name", "c long long long long long long long long long long long long  column name"),
-                    List.of(
-                            List.of("1", 2, "3"),
-                            List.of("4", 5, "6")));
+            queryResult = repository.executeQuery(selectedQuery, parametersPassed);
 
             currentState = STATES.RESULT_DISPLAY;
         }

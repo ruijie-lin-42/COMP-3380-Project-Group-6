@@ -1,9 +1,10 @@
-import dto.ParameterType;
 import dto.QueryDefinition;
 import dto.QueryParameter;
 import dto.QueryResult;
 import exceptions.ui.InvalidInputException;
 
+import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
 import java.util.*;
 import java.util.function.Predicate;
 
@@ -244,16 +245,46 @@ public class QueryUI {
                 }else{
                     // if the input is not blank, then no matter if the current parameter is optional, try to parse and pass it
                     if (!input.isBlank()) {
-                        if(parameter.type() == ParameterType.INTEGER){
-                            try{
-                                parametersPassed.addLast(Integer.parseInt(input));
-                                valid = true;
-                            }catch(NumberFormatException e){
-                                System.out.println("The number you entered must be an integer.");
+                        switch(parameter.type()){
+                            case INTEGER -> {
+                                try{
+                                    parametersPassed.addLast(Integer.parseInt(input));
+                                    valid = true;
+                                }catch(NumberFormatException e){
+                                    System.out.println("The input must be an integer.");
+                                }
                             }
-                        }else if(parameter.type() == ParameterType.STRING){
-                            parametersPassed.addLast(input);
-                            valid = true;
+                            case STRING -> {
+                                parametersPassed.addLast(input);
+                                valid = true;
+                            }
+                            case DOUBLE -> {
+                                try{
+                                    parametersPassed.addLast(Double.parseDouble(input));
+                                    valid = true;
+                                }catch (NumberFormatException e){
+                                    System.out.println("The input must be a decimal number (double).");
+                                }
+                            }
+                            case DATE -> {
+                                try{
+                                    parametersPassed.addLast(LocalDate.parse(input));
+                                    valid = true;
+                                }catch (DateTimeParseException e){
+                                    System.out.println("The input must be a valid date in format of YYYY-MM-DD.");
+                                }
+                            }
+                            case SORT_ORDER -> {
+                                if("1".equals(input)){
+                                    parametersPassed.addLast("ASC");
+                                    valid = true;
+                                }else if("2".equals(input)){
+                                    parametersPassed.addLast("DESC");
+                                    valid = true;
+                                }else{
+                                    System.out.println("You must select either [1] ASC or [2] DESC.");
+                                }
+                            }
                         }
                     }
                 }
@@ -375,15 +406,30 @@ public class QueryUI {
      */
     private void printParameter(QueryParameter parameter){
         String instruction = "Please enter a";
+        String note = "";
         switch(parameter.type()){
-            case INTEGER: instruction += "n integer";break;
-            case STRING: instruction += " string";break;
+            case INTEGER -> instruction += "n integer";
+            case STRING -> instruction += " string";
+            case DOUBLE -> instruction += " decimal number (double)";
+            case DATE -> {
+                instruction += " date";
+                note = "Note that the format should be YYYY-MM-DD. e.g. 2000-01-01";
+            }
+            case SORT_ORDER -> {
+                instruction += " sorting order";
+                note = """
+                        Please select one of the followings:
+                        [1] ASC (ascending order)
+                        [2] DESC (descending order)""";
+            }
         }
         instruction += " for the " + parameter.name();
         System.out.println();
         System.out.print(parameter.optional() ? "OPTIONAL: " : "REQUIRED: ");
-        System.out.print(instruction);
-        System.out.println();
+        System.out.println(instruction);
+        if(!note.isEmpty()){
+            System.out.println(note);
+        }
     }
 
     /**

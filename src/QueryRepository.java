@@ -6,6 +6,7 @@ import exceptions.repository.DataAccessException;
 import exceptions.repository.IncorrectParameterTypeException;
 
 import java.sql.*;
+import java.time.LocalDate;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -53,7 +54,18 @@ public class QueryRepository{
                 // I consider this to be good enough :)
                 switch(parameter.type()){
                     case INTEGER -> preparedStatement.setInt(i, (Integer) actualParameter);
-                    case STRING -> preparedStatement.setString(i, (String) actualParameter);
+                    case STRING-> preparedStatement.setString(i, (String) actualParameter);
+                    case DOUBLE -> preparedStatement.setDouble(i, (Double) actualParameter);
+                    case DATE -> preparedStatement.setDate(i, Date.valueOf((LocalDate) actualParameter));
+                    case SORT_ORDER -> {
+                        String sortingOrder = (String) actualParameter;
+                        if("ASC".equalsIgnoreCase(sortingOrder) || "DESC".equalsIgnoreCase(sortingOrder)){
+                            preparedStatement.setString(i, sortingOrder);
+                        }else{
+                            throw new IncorrectParameterTypeException("Parameter type incorrect for parameter " + parameter.name() +
+                                    ", expected being either ASC or DESC, but was " + actualParameter);
+                        }
+                    }
                     default -> throw new IncorrectParameterTypeException("Parameter type incorrect for parameter " + parameter.name() +
                             ", expected: " + parameter.type() + ", but was " + actualParameter.getClass().getSimpleName());
                 }

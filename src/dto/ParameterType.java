@@ -3,6 +3,9 @@ package dto;
 public enum ParameterType {
 
     INTEGER,
-    STRING
+    STRING,
+    DOUBLE,
+    DATE,
+    SORT_ORDER
 
 }

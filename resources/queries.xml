@@ -3,28 +3,11 @@
 <!-- I think it's easier to parse the .xml files then .sql files, so I used .xml                            -->
 <!-- Other sql statements I don't need to execute them, so they'll be stored in .sql files for reference    -->
 <queries>
-<!--  insert query statements here using the following structure                    -->
-<!--    <query id="1">                                                              -->
-<!--        <name>example query</name>                                              -->
-<!--        <description>this query statement is a query statement</description>    -->
-<!--        <parameters>                                                            -->
-<!--            <parameter name="name" type="STRING" "prompt"="Enter the name:">    -->
-<!--            <parameter name="age" type="INTEGER" "prompt"="Enter the age:">     -->
-<!--        </parameters>                                                           -->
-<!--        <sql>                                                                   -->
-<!--            SELECT                                                              -->
-<!--                67                                                              -->
-<!--            FROM table                                                          -->
-<!--        </sql>                                                                  -->
-<!--    </query>                                                                    -->
     <query id="1">
         <name>Highest-Rated Movies by Budget</name>
         <description>Identify movies that achieved the highest average rating relative to their budgets to determine which movies received high ratings having relatively small budgets.</description>
-        <parameters>
-            <parameter name="fake optional parameter 1" type="STRING" optional="true"/>
-            <parameter name="fake required parameter2" type="INTEGER" optional="false"/>
-        </parameters>
         <sql>
+            <![CDATA[
             SELECT
                 m.movie_id,
                 m.title,
@@ -41,6 +24,528 @@
             ) mr -- movie_rating
                 ON mr.movie_id = m.movie_id
             ;
+            ]]>
+        </sql>
+    </query>
+    <query id="2">
+        <name>Movie Count by Pairs of Actors</name>
+        <description>Identify pairs of actors who appeared together in the greatest amount of movies and rank the pairs by the number of movies they have shared.</description>
+        <sql>
+            <![CDATA[
+            SELECT
+                w1.worker_id AS actor1_id,
+                w1.name AS actor1_name,
+                w2.worker_id AS actor2_id,
+                w2.name AS actor2_name,
+                COUNT(*) AS num_shared_movies
+            FROM playsIn pi1
+            JOIN playsIn pi2
+                ON pi1.movie_id = pi2.movie_id AND pi1.worker_id < pi2.worker_id
+            JOIN worker w1
+                ON pi1.worker_id = w1.worker_id
+            JOIN worker w2
+                ON pi2.worker_id = w2.worker_id
+            GROUP BY
+                pi1.worker_id, pi1.name,
+                pi2.worker_id, pi2.name
+            ORDER BY
+                num_shared_movies DESC
+            ;
+            ]]>
+        </sql>
+    </query>
+    <query id="3">
+        <name>Movies With Low Vote Count But High Ratings</name>
+        <description>Identify movies with low vote count whose average ratings are higher than the average rating of the movies in the same genre to find less widely rated movies that performed unusually well within their genres.</description>
+        <sql>
+            <![CDATA[
+            SELECT
+                m.movie_id,
+                m.title,
+                g.genre_name,
+                m.vote_count AS movie_avg_vote_count,
+                mr.avg_ratings AS movie_avg_rating,
+                gs.avg_vote_count AS genre_avg_vote_count,
+                gs.avg_ratings AS genre_avg_rating
+            FROM movie m
+            JOIN movie_genre mg -- 'tagged' in ER
+                ON m.movie_id = mg.movie_id
+            JOIN genre g
+                ON mg.genre_id = g.genre_id
+            JOIN (
+                SELECT
+                    movie_id,
+                    AVG(rating) AS avg_ratings
+                FROM rating
+                GROUP BY movie_id
+            ) mr -- movie rating
+            JOIN (
+                SELECT
+                    mg.genre_id,
+                    AVG(m.vote_count) AS avg_vote_count,
+                    avg(r.rating) AS avg_ratings
+                FROM movie m
+                JOIN movie_genre mg -- 'tagged' in ER
+                    ON m.movie_id = mg.movie_id
+                JOIN rating r -- 'rated' in ER
+                    ON r.movie_id = m.movie_id
+                GROUP BY mg.genre_id
+            ) gs -- genre statistics
+            WHERE
+                m.vote_count < gs.avg_vote_count
+                AND mr.avg_ratings > gs.avg_ratings
+            ORDER BY
+                m.vote_count ASC,
+                mr.avg_ratings DESC
+            ;
+            ]]>
+        </sql>
+    </query>
+    <query id="4">
+        <name>Most Profitable Movie Genres</name>
+        <description>Identify movie genres whose movies generate the greatest profit, where movie profit is calculated as revenue minus budget, to determine which genres tend to be the most financially successful.</description>
+        <sql>
+            <![CDATA[
+            SELECT
+                g.genre_id,
+                g.genre_name,
+                SUM(m.revenue - m.budget) AS total_profit
+            FROM movies m
+            JOIN movie_genre mg -- 'has' in ER
+                ON m.movie_id = mg.movie_id
+            JOIN genres g
+                ON mg.genre_id = g.genre_id
+            GROUP BY g.genre_id, g.genre_name
+            ORDER BY total_profit DESC
+            ;
+            ]]>
+        </sql>
+    </query>
+    <query id="5">
+        <name>Most Profitable Movie Production Companies</name>
+        <description>Identify production companies whose movies generate the greatest profit, where movie profit is calculated as revenue minus budget, to determine which companies have produced the most financially successful movies.</description>
+        <sql>
+            <![CDATA[
+            SELECT
+                pc.production_id,
+                pc.company_name,
+                SUM(m.revenue - m.budget) AS total_profit
+            FROM movies m
+            JOIN movie_company mc -- 'makes' in ER
+                ON m.movie_id = mc.movie_id
+            JOIN prod_companies pc -- 'Company' in ER
+                ON mc.production_id = pc.production_id
+            GROUP BY pc.production_id, pc.company_name
+            ORDER BY total_profit DESC
+            ;
+            ]]>
+        </sql>
+    </query>
+    <query id="6">
+        <name>Movie Language and Country Analysis</name>
+        <description>Identify the amount of movies from each country that include a specific language (movies are counted multiple times under different languages if they include multiple languages) and analyze how common certain languages are in movies from specific countries.</description>
+        <sql>
+            <![CDATA[
+            SELECT
+                c.country_name,
+                l.name AS language_name,
+                COUNT(DISTINCT m.movie_id) AS total_movies
+            FROM Movie m
+            JOIN includes i
+                ON m.movie_id = i.movie_id
+            JOIN Country c
+                ON i.iso = c.iso
+            JOIN hasLanguage hl
+                ON m.movie_id = hl.movie_id
+            JOIN Language l
+                ON hl.iso = l.iso
+            GROUP BY c.country_name, l.name
+            ORDER BY total_movies DESC
+            ;
+            ]]>
+        </sql>
+    </query>
+    <query id="7">
+        <name>Workers Worked Both as Actors and Crew</name>
+        <description>Identify workers who have taken acting and non-acting jobs (such as writing or directing) in movies, with the name(or partial name) of the workers being provided by the user.</description>
+        <parameters>
+            <parameter name="worker's name" type="STRING" optional="true"/>
+        </parameters>
+        <sql>
+            <![CDATA[
+            SELECT DISTINCT
+                w.id AS worker_id,
+                w.name AS worker_name,
+                p.character AS acting_role,
+                wo.department AS crew_department
+                wo.job AS crew_job
+            FROM Worker w
+            -- Pull acting roles (if any exist)
+            LEFT JOIN playsIn p
+                ON w.id = p.id
+            -- Pull crew/non-acting jobs (if any exist)
+            LEFT JOIN worksOn wo
+                ON w.id = wo.id
+            WHERE LOWER(w.name) LIKE COALESCE('%' + LOWER(?) + '%', '%')
+                AND (p.id IS NOT NULL OR wo.id IS NOT NULL)
+            --Ensures that they have at least one job and acting role
+            ;
+            ]]>
+        </sql>
+    </query>
+    <query id="8">
+        <name>Keywords That Leads to High Movie Ratings</name>
+        <description>Identify which keywords lead to movies having good ratings by analyzing movies with certain keywords ratings.</description>
+        <sql>
+            <![CDATA[
+            SELECT
+                k.keyword_name,
+                AVG(r.rating) AS average_user_rating,
+                COUNT(DISTINCT m.movie_id) AS movie_count
+            FROM Keywords k
+            JOIN taggedWith tw
+                ON k.keyword_id = tw.keyword_id
+            JOIN Movie m
+                ON tw.movie_id = m.movie_id
+            JOIN rated r
+                ON m.movie_id = r.movie_id
+            GROUP BY k.keyword_name
+                HAVING COUNT(DISTINCT m.movie_id) >= 5 -- Filters out obscure one-off keywords
+            ORDER BY average_user_rating DESC
+            LIMIT 20
+            ;
+            ]]>
+        </sql>
+    </query>
+    <query id="9">
+        <name>Most Common Genre Pairs and Rating Analysis</name>
+        <description>Identify the most common pairs of genres that appear in the same movies and compare their average ratings to determine which pairs of genres receive higher ratings.</description>
+        <sql>
+            <![CDATA[
+            SELECT
+                g1.genre_name AS genre_1,
+                g2.genre_name AS genre_2,
+                COUNT(DISTINCT mg1.movie_id) AS movie_count,
+                AVG(mr.avg_rating) AS avg_rating
+            FROM movie_genre mg1 -- 'has' in ER
+            JOIN movie_genre mg2 -- 'has' in ER
+                ON mg1.movie_id = mg2.movie_id AND mg1.movie_id < mg2.movie_id
+            JOIN genre g1
+                ON mg1.genre_id = g1.genre_id
+            JOIN genre g2
+                ON mg2.genre_id = g2.genre_id
+            JOIN (
+                SELECT
+                    movie_id,
+                    AVG(rating) AS avg_rating
+                FROM rating
+                GROUP BY movie_id
+            ) mr -- movie rating
+                ON mg1.movie_id = mr.movie_id
+            GROUP BY
+                g1.genre_id, g1.genre_name,
+                g2.genre_id, g2.genre_name
+            ORDER BY avg_rating DESC
+            ;
+            ]]>
+        </sql>
+    </query>
+    <query id="10">
+        <name>Workers' Preferred Genres</name>
+        <description>Identify the preferences of directors and actors for specific movie genres by analyzing their distribution across these genres.</description>
+        <sql>
+            <![CDATA[
+            SELECT
+                w.id AS worker_id,
+                w.name AS worker_name,
+                'Director' AS role,
+                g.genre_name AS genre,
+                COUNT(DISTINCT wo.movie_id) AS movie_count
+            FROM worker w
+            JOIN worksOn wo
+                ON w.worker_id = wo.worker_id AND wo.job = 'Director'
+            JOIN movie_genre mg -- 'has' in ER
+                ON wo.movie_id = mg.movie_id
+            JOIN genre g
+                ON mg.genre_id = genre.genre_id
+            GROUP BY
+                w.worker_id, w.worker_name,
+                g.genre_id, g.genre_name
+
+            UNION ALL
+
+            SELECT
+                w.id AS worker_id,
+                w.name AS worker_name,
+                'Actor' AS role,
+                g.genre_name AS genre,
+                COUNT(DISTINCT pi.movie_id) AS movie_count
+            FROM worker w
+            JOIN playsIn pi
+                ON w.worker_id = pi.worker_id
+            JOIN movie_genre mg -- 'has' in ER
+                ON pi.movie_id = mg.movie_id
+            JOIN genre g
+                ON mg.genre_id = genre.genre_id
+            GROUP BY
+                w.worker_id, w.worker_name,
+                g.genre_id, g.genre_name
+            ;
+            ]]>
+        </sql>
+    </query>
+    <query id="11">
+        <name>Most Frequently Occurring Movie Keywords in a Country</name>
+        <description>Identify the most frequently occurring movie keywords for a user-selected production country, ranked by the number of movies associated with each keyword.</description>
+        <parameters>
+            <parameter name="country name" type="STRING" optional="false"/>
+        </parameters>
+        <sql>
+            <![CDATA[
+            SELECT
+                k.keyword_name,
+                COUNT(DISTINCT m.movie_id) AS movie_count
+            FROM movie m
+            JOIN includes i
+                ON m.movie_id = i.movie_id
+            JOIN productionCountry pc
+                ON i.iso = pc.iso
+            JOIN taggedWith tw
+                ON m.movie_id = tw.movie_id
+            JOIN keyword k
+                ON tw.keyword_id = k.keyword_id
+            WHERE LOWER(pc.country_name) = LOWER(?)
+            GROUP BY k.keyword_id, k.keyword_name
+            ORDER BY movie_count DESC
+            ;
+            ]]>
+        </sql>
+    </query>
+    <query id="12">
+        <name>Highest-Rated Movie Keywords in a Country</name>
+        <description>Identify the highest-rated movie keywords in a user-selected production country by calculating the average TMDB user rating of movies associated with each keyword.</description>
+        <parameters>
+            <parameter name="country name" type="STRING" optional="false"/>
+        </parameters>
+        <sql>
+            <![CDATA[
+            SELECT
+                k.keyword_name,
+                AVG(m.vote_average) AS avg_rating,
+                COUNT(DISTINCT m.movie_id) AS movie_count
+            FROM movie m
+            JOIN includes i
+                ON m.movie_id = i.movie_id
+            JOIN productionCountry pc
+                ON i.iso = pc.iso
+            JOIN taggedWith tw
+                ON m.movie_id = tw.movie_id
+            JOIN keyword k
+                ON tw.keyword_id = k.keyword_id
+            WHERE LOWER(pc.country_name) = LOWER(?)
+                AND m.vote_count > 0
+            GROUP BY k.keyword_id, k.keyword_name
+            ORDER BY avg_rating DESC, movie_count DESC
+            ;
+            ]]>
+        </sql>
+    </query>
+    <query id="13">
+        <name>Keywords That Lead to Highest Average Revenue in a Country</name>
+        <description>Identify which movie keywords are associated with the highest average revenue in a user-selected production country.</description>
+        <parameters>
+            <parameter name="country name" type="STRING" optional="false"/>
+        </parameters>
+        <sql>
+            <![CDATA[
+            SELECT
+                k.keyword_name,
+                AVG(m.revenue) AS avg_revenue,
+                SUM(m.revenue) AS total_revenue,
+                COUNT(DISTINCT m.movie_id) AS movie_count
+            FROM movie m
+            JOIN includes i
+                ON m.movie_id = i.movie_id,
+            JOIN productionCountry pc
+                ON i.iso = pc.iso
+            JOIN taggedWith tw
+                ON m.movie_id = tw.movie_id
+            JOIN keyword k
+                ON tw.keyword_id = k.keyword_id
+            WHERE LOWER(pc.country_name) = LOWER(?)
+            GROUP BY k.keyword_id, k.keyword_name
+            ORDER BY avg_revenue DESC
+            ;
+            ]]>
+        </sql>
+    </query>
+    <query id="14">
+        <name>Actors Appeared Most Frequently in Each Movie Genre</name>
+        <description>Identify actors who have appeared in the greatest number of distinct movie genres, ranking them by their genre diversity.</description>
+        <sql>
+            <![CDATA[
+            SELECT
+                w.name AS actor_name,
+                COUNT(DISTINCT h.genre_id) AS genre_count,
+                COUNT(DISTINCT p.movie_id) AS movie_count
+            FROM worker w
+            JOIN playsIn p
+                ON w.id = p.id
+            JOIN has h
+                ON p.movie_id = h.movie_id
+            GROUP BY w.id, w.name
+            ORDER BY genre_count DESC, movie_count DESC
+            ;
+            ]]>
+        </sql>
+    </query>
+    <query id="15">
+        <name>Crews and Casts by Movie Ratings</name>
+        <description>Identify crews/casts that have an average rating between [a, b] on movies they partake in and orders based on user-specified sorting order.</description>
+        <parameters>
+            <parameter name="rating lower bound" type="DOUBLE" optional="false"/>
+            <parameter name="rating upper bound" type="DOUBLE" optional="false"/>
+            <parameter name="sorting order" type="SORT_ORDER" optional="false"/>
+        </parameters>
+        <sql>
+            <![CDATA[
+            SELECT
+                W.id AS worker_id,
+                CASE
+                    WHEN W.role IS NULL THEN 'Actor'
+                    ELSE W.role
+                END AS worker_role,
+                AVG(R.rating) AS avg_rating
+            FROM (
+                    SELECT
+                        movie_id,
+                        rating
+                    FROM rated
+                ) AS R
+            JOIN (
+                (
+                    SELECT id,
+                        movie_id,
+                        NULL
+                    FROM playsIn
+                )
+
+                UNION
+
+                (
+                    SELECT id,
+                        movie_id,
+                        department AS role
+                    FROM worksOn
+                )
+
+                ) AS W
+                ON R.movie_id = W.movie_id
+            GROUP BY worker_role, worker_id
+                HAVING avg_rating >= ? AND avg_rating <= ?
+            ORDER BY avg_rating ?
+            ;
+            ]]>
+        </sql>
+    </query>
+    <query id="16">
+        <name>Actors by Movie Popularity</name>
+        <description>Find all actors that participated in movies that have a popularity value in between [a,b] and orders based on user-specified sorting order.</description>
+        <parameters>
+            <parameter name="rating lower bound" type="DOUBLE" optional="false"/>
+            <parameter name="rating upper bound" type="DOUBLE" optional="false"/>
+            <parameter name="sorting order" type="SORT_ORDER" optional="false"/>
+        </parameters>
+        <sql>
+            <![CDATA[
+            SELECT
+                A.id AS worker_id,
+                AVG(M.popularity) AS avg_popularity
+            FROM (
+                    SELECT
+                        movie_id,
+                        popularity
+                    FROM Movie
+                ) AS M
+            JOIN (
+                    SELECT
+                        id,
+                        movie_id
+                    FROM playsIn
+                ) AS A
+                ON M.movie_id = A.movie_id
+            WHERE M.popularity >= ? AND M.popularity <= ?
+            GROUP BY worker_id
+            ORDER BY avg_popularity ?
+            ;
+            ]]>
+        </sql>
+    </query>
+    <query id="17">
+        <name>Movie Ratings Within a Period of Time</name>
+        <description>Find movies that were released in between [a, b] and calculating the average of their ratings to determine whether movies within a specific time range has better ratings than other time ranges.</description>
+        <parameters>
+            <parameter name="start date" type="DATE" optional="false"/>
+            <parameter name="end date" type="DATE" optional="false"/>
+        </parameters>
+        <sql>
+            <![CDATA[
+            SELECT
+                AVG(rating)
+            FROM (
+                    SELECT
+                        movie_id,
+                        release_date
+                    FROM Movie
+                ) AS M
+            JOIN (
+                    SELECT
+                        movie_id,
+                        rating
+                    FROM rated
+                ) AS R
+                ON M.movie_id = R.movie_id
+            WHERE M.release_date >= ? AND M.release_date <= ?
+            ;
+            ]]>
+        </sql>
+    </query>
+    <query id="18">
+        <name>Movies' Durations and Average Ratings Across Different Eras</name>
+        <description>Identify the relationship between movies' durations and average ratings across different release eras, and analyze whether movies from different periods have different rating trends within different duration ranges.</description>
+        <sql>
+            <![CDATA[
+            SELECT
+                FLOOR(EXTRACT(YEAR FROM m.release_date) / 10) * 10 AS release_era,
+                CASE
+                    WHEN m.runtime <= 60 THEN 'short'
+                    WHEN m.runtime <= 120 THEN 'medium'
+                    WHEN m.runtime <= 180 THEN 'long'
+                    ELSE 'very long'
+                END AS duration_length,
+                COUNT(*) AS movie_count,
+                AVG(mr.avg_rating) AS avg_rating
+            FROM (
+                SELECT
+                    movie_id,
+                    AVG(r.rating) AS avg_rating
+                FROM ratings -- 'rated' in ER
+                GROUP BY movie_id
+            ) mr -- movie rating
+            JOIN movie m
+                ON mr.movie_id = m.movie_id
+            GROUP BY
+                release_era, duration_length
+            ORDER BY
+                release_era,
+                CASE duration_length
+                    WHEN 'short' THEN 1
+                    WHEN 'medium' THEN 2
+                    WHEN 'long' THEN 3
+                    WHEN 'very long' THEN 4
+                END
+            ;
+            ]]>
         </sql>
     </query>
 </queries>
